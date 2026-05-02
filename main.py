@@ -11,7 +11,7 @@ PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 def generate_fact():
     client = Groq(api_key=GROQ_API_KEY)
     response = client.chat.completions.create(
-        model="llama3-8b-8192",
+        model="llama-3.3-70b-versatile",
         messages=[{
             "role": "user",
             "content": "اكتب حقيقة مذهلة وغير معروفة باللغة العربية. جملة واحدة فقط. لا تضع مقدمة."
