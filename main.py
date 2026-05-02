@@ -3,7 +3,7 @@ import asyncio
 import os
 import requests
 from groq import Groq
-from moviepy.editor import *
+from moviepy.editor import ImageClip, AudioFileClip, TextClip, CompositeVideoClip, ColorClip
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
@@ -26,7 +26,7 @@ async def text_to_speech(text, output="voice.mp3"):
 def get_image():
     headers = {"Authorization": PEXELS_API_KEY}
     res = requests.get(
-        "https://api.pexels.com/v1/search?query=nature+amazing&per_page=1",
+        "https://api.pexels.com/v1/search?query=nature&per_page=1",
         headers=headers
     ).json()
     img_url = res["photos"][0]["src"]["large"]
@@ -38,28 +38,27 @@ def make_video(fact_text):
     audio = AudioFileClip("voice.mp3")
     duration = audio.duration
     bg = ImageClip("bg.jpg").set_duration(duration).resize((1080, 1920))
+    overlay = ColorClip((1080, 1920), color=(0,0,0)).set_opacity(0.5).set_duration(duration)
     txt = TextClip(
         fact_text,
-        fontsize=60,
+        fontsize=55,
         color="white",
-        font="Arial",
         size=(900, None),
         method="caption",
         align="center"
     ).set_duration(duration).set_position("center")
-    overlay = ColorClip((1080, 1920), color=(0,0,0)).set_opacity(0.5).set_duration(duration)
     video = CompositeVideoClip([bg, overlay, txt]).set_audio(audio)
-    video.write_videofile("output.mp4", fps=24, codec="libx264")
+    video.write_videofile("output.mp4", fps=24, codec="libx264", audio_codec="aac")
 
 if __name__ == "__main__":
-    print("⏳ جاري توليد الحقيقة...")
+    print("⏳ توليد الحقيقة...")
     fact = generate_fact()
-    print(f"✅ الحقيقة: {fact}")
-    print("⏳ جاري توليد الصوت...")
+    print(f"✅ {fact}")
+    print("⏳ توليد الصوت...")
     asyncio.run(text_to_speech(fact))
-    print("⏳ جاري جلب الصورة...")
+    print("⏳ جلب الصورة...")
     get_image()
-    print("⏳ جاري صنع الفيديو...")
+    print("⏳ صنع الفيديو...")
     make_video(fact)
-    print("✅ الفيديو جاهز: output.mp4")
+    print("✅ الفيديو جاهز!")
    
