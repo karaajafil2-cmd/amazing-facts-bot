@@ -1,25 +1,23 @@
-import anthropic
 import edge_tts
 import asyncio
 import os
 import requests
+from groq import Groq
 from moviepy.editor import *
-from datetime import datetime
 
-CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 
 def generate_fact():
-    client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=200,
+    client = Groq(api_key=GROQ_API_KEY)
+    response = client.chat.completions.create(
+        model="llama3-8b-8192",
         messages=[{
             "role": "user",
             "content": "اكتب حقيقة مذهلة وغير معروفة باللغة العربية. جملة واحدة فقط. لا تضع مقدمة."
         }]
     )
-    return message.content[0].text
+    return response.choices[0].message.content
 
 async def text_to_speech(text, output="voice.mp3"):
     communicate = edge_tts.Communicate(text, voice="ar-SA-HamedNeural")
@@ -64,3 +62,4 @@ if __name__ == "__main__":
     print("⏳ جاري صنع الفيديو...")
     make_video(fact)
     print("✅ الفيديو جاهز: output.mp4")
+   
