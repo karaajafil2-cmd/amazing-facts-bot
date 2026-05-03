@@ -4,24 +4,24 @@ import os
 import requests
 import random
 from groq import Groq
-from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip
+from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip, CompositeVideoClip
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import arabic_reshaper
 from bidi.algorithm import get_display
 
-# الإعدادات
+# إعداد المفاتيح من بيئة العمل (GitHub Secrets)
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 
 def generate_fact():
-    """توليد حقيقة علمية قصيرة ومبهرة"""
+    """توليد حقيقة علمية باستخدام ذكاء اصطناعي"""
     client = Groq(api_key=GROQ_API_KEY)
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{
             "role": "user", 
-            "content": "اكتب حقيقة علمية مذهلة باللغة العربية. ابدأ بـ 'هل تعلم أن'. اجعلها جملة واحدة أو جملتين كحد أقصى لتناسب الشاشة."
+            "content": "اكتب حقيقة علمية مذهلة باللغة العربية. ابدأ بـ 'هل تعلم أن'. اجعلها جملة واحدة قصيرة جداً لتناسب شاشة الهاتف."
         }]
     )
     return response.choices[0].message.content.strip()
@@ -32,76 +32,63 @@ async def text_to_speech(text, output="voice.mp3"):
     await communicate.save(output)
 
 def get_background_video():
-    """جلب فيديو خلفية متحرك بدلاً من صورة ثابتة"""
+    """جلب فيديو خلفية من Pexels"""
     headers = {"Authorization": PEXELS_API_KEY}
-    # البحث عن فيديوهات طبيعة أو فضاء بدقة عمودية
-    url = "https://api.pexels.com/videos/search?query=galaxy+stars&orientation=portrait&per_page=1"
+    url = "https://api.pexels.com/videos/search?query=nature+galaxy&orientation=portrait&per_page=10"
     res = requests.get(url, headers=headers).json()
-    video_url = res["videos"][0]["video_files"][0]["link"]
-    
+    # اختيار فيديو عشوائي من النتائج لزيادة التنوع
+    video_url = random.choice(res["videos"])["video_files"][0]["link"]
     video_data = requests.get(video_url).content
     with open("bg_video.mp4", "wb") as f:
         f.write(video_data)
 
-def process_text_for_pillow(text, max_width=900):
-    """إصلاح النص العربي وتغليفه ليناسب العرض"""
+def create_text_frame(text, font_path="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
+    """صناعة صورة نصية شفافة مع معالجة اللغة العربية"""
+    # إعادة تشكيل النص العربي ليظهر بشكل صحيح
     reshaped_text = arabic_reshaper.reshape(text)
     bidi_text = get_display(reshaped_text)
-    return bidi_text
-
-def create_text_image(text, duration):
-    """تحويل النص إلى صورة شفافة مع معالجة اللغة العربية"""
-    # إعداد الخط (تأكد من المسار أو استخدم اسم الخط مباشرة إذا كان منصب)
-    try:
-        font = ImageFont.truetype("arial.ttf", 60) # أو مسار خط يدعم العربية
-    except:
-        font = ImageFont.load_default()
-
+    
     img = Image.new("RGBA", (1080, 1920), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     
-    # معالجة النص العربي
-    processed_text = process_text_for_pillow(text)
-    
-    # رسم النص في المنتصف مع ظل بسيط للوضوح
+    try:
+        font = ImageFont.truetype(font_path, 60)
+    except:
+        font = ImageFont.load_default()
+
+    # رسم النص في المنتصف مع ظل أسود للوضوح
     w, h = 1080, 1920
-    draw.text((w/2, h/2), processed_text, font=font, fill="white", anchor="mm", align="center", stroke_width=2, stroke_fill="black")
-    
+    draw.text((w/2, h/2), bidi_text, font=font, fill="white", anchor="mm", align="center", stroke_width=2, stroke_fill="black")
     return np.array(img)
 
 def make_video(fact_text):
-    """تجميع العناصر لإنتاج الفيديو النهائي"""
+    """تجميع الفيديو والصوت والنص"""
     audio = AudioFileClip("voice.mp3")
-    
-    # تحميل فيديو الخلفية وقصه على مدة الصوت
     bg_video = VideoFileClip("bg_video.mp4").resize((1080, 1920)).subclip(0, audio.duration)
     
-    # إضافة طبقة تعتيم خفيفة للفيديو الأصلي لبروز النص
-    dark_overlay = bg_video.colorx(0.6) 
-
-    # إنشاء نص احترافي (استخدام ImageClip بدلاً من TextClip لتفادي مشاكل ImageMagick)
-    from moviepy.editor import ImageClip
-    text_frame = create_text_image(fact_text, audio.duration)
-    text_clip = ImageClip(text_frame).set_duration(audio.duration).set_position('center')
+    # إضافة تعتيم خفيف للخلفية لبروز النص
+    dark_bg = bg_video.colorx(0.7)
+    
+    # تحويل النص إلى كليب فيديو
+    text_img = create_text_frame(fact_text)
+    text_clip = ImageClip(text_img).set_duration(audio.duration).set_position('center')
 
     # الدمج النهائي
-    final_video = CompositeVideoClip([dark_overlay, text_clip]).set_audio(audio)
-    final_video.write_videofile("output_final.mp4", fps=24, codec="libx264", audio_codec="aac")
+    final_video = CompositeVideoClip([dark_bg, text_clip]).set_audio(audio)
+    final_video.write_videofile("output.mp4", fps=24, codec="libx264", audio_codec="aac")
 
 async def main():
-    print("1. توليد النص...")
+    print("جاري التشغيل...")
     fact = generate_fact()
-    print(f"النص: {fact}")
-
-    print("2. توليد الصوت وجلب الفيديو...")
+    print(f"الحقيقة المنتجة: {fact}")
+    
     await asyncio.gather(
         text_to_speech(fact),
         asyncio.to_thread(get_background_video)
     )
-
-    print("3. مونتاج الفيديو النهائي...")
+    
     make_video(fact)
-    print("تم بنجاح! الملف: output_final.mp4")
+    print("تم إنتاج الفيديو بنجاح!")
 
 if __name__ == "__main__":
     asyncio.run(main())
