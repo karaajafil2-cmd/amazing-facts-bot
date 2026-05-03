@@ -1,26 +1,29 @@
-name: Daily Facts Bot
+name: run-bot
+
 on:
-  schedule:
-    - cron: "0 8 * * *"
+  push:
+    branches: [ "main" ]
   workflow_dispatch:
+
 jobs:
-  run-bot:
+  build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
-      - name: Setup Python
+
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: '3.9'
+
       - name: Install dependencies
-        run: pip install groq edge-tts moviepy==1.0.3 requests pillow==9.5.0 imageio imageio-ffmpeg numpy
+        run: |
+          python -m pip install --upgrade pip
+          pip install arabic-reshaper python-bidi edge-tts groq moviepy pillow requests numpy
+
       - name: Run bot
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: python main.py
-      - name: Upload video
-        uses: actions/upload-artifact@v4
-        with:
-          name: daily-video
-          path: output.mp4
