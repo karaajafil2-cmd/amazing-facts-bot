@@ -13,9 +13,14 @@ jobs:
         with:
           python-version: "3.10"
       - name: Install dependencies
-        run: pip install groq edge-tts moviepy==1.0.3 requests pillow==9.5.0 imageio imageio-ffmpeg
+        run: pip install groq edge-tts moviepy==1.0.3 requests pillow==9.5.0 imageio imageio-ffmpeg numpy
       - name: Run bot
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: python main.py
+      - name: Upload video
+        uses: actions/upload-artifact@v3
+        with:
+          name: daily-video
+          path: output.mp4
